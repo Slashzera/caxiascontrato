@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,7 +19,7 @@ const LoginPage = ({ onLogin }) => {
       if (email === 'admin@saude.dc.rj.gov.br' && password === 'admin123') {
         onLogin({
           id: 1,
-          name: 'João Silva',
+          name: 'Pablo Rangel',
           email: 'admin@saude.dc.rj.gov.br',
           role: 'Administrador',
           department: 'Subsecretaria de Gestão'

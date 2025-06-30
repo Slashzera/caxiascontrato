@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -10,7 +9,9 @@ import {
   AlertTriangle,
   TrendingUp,
   Calendar,
-  DollarSign
+  DollarSign,
+  ExternalLink,
+  ClipboardList
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
@@ -50,6 +51,10 @@ const Dashboard = () => {
     { process: '2024/005', deadline: '05/02/2024', type: 'Entrega Documentos', priority: 'Baixa' },
   ];
 
+  const handleExternalSystemAccess = (url: string) => {
+    window.open(url, '_blank');
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -79,6 +84,37 @@ const Dashboard = () => {
         })}
       </div>
 
+      {/* External Systems Access */}
+      <div className="mb-6">
+        <h2 className="text-xl font-semibold text-gray-900 mb-4">Acesso a Outros Sistemas</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <Card 
+            className="hover:shadow-xl transition-all duration-300 cursor-pointer bg-gradient-to-br from-blue-50 to-indigo-100 border-blue-200 hover:border-blue-300 transform hover:scale-105"
+            onClick={() => handleExternalSystemAccess('https://sisgecon.mourascloud.com.br/')}
+          >
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="p-3 rounded-full bg-blue-500 text-white">
+                  <ClipboardList className="w-8 h-8" />
+                </div>
+                <ExternalLink className="w-5 h-5 text-blue-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-gray-900 mb-2">Sistema de Atas</h3>
+                <p className="text-sm text-gray-600 mb-3">
+                  Acesse o sistema de gerenciamento de atas e documentos oficiais
+                </p>
+                <div className="flex items-center text-blue-600 text-sm font-medium">
+                  <span>Acessar Sistema</span>
+                  <ExternalLink className="w-4 h-4 ml-1" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      {/* Charts Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Process Chart */}
         <Card>
@@ -131,6 +167,7 @@ const Dashboard = () => {
         </Card>
       </div>
 
+      {/* Recent Processes and Upcoming Deadlines */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Recent Processes */}
         <Card>

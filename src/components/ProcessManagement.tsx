@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -9,8 +8,9 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Plus, Search, Eye, Edit, FileText, Calendar, Tag, CheckSquare, Trash2 } from 'lucide-react';
+import { Plus, Search, Eye, Edit, FileText, Calendar, Tag, CheckSquare, Trash2, Calculator } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import ProcessMeasurements from './ProcessMeasurements';
 
 const ProcessManagement = () => {
   const availableTags = [
@@ -95,6 +95,7 @@ const ProcessManagement = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [showMeasurements, setShowMeasurements] = useState(false);
   const [selectedProcess, setSelectedProcess] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -247,6 +248,16 @@ const ProcessManagement = () => {
     }
   };
 
+  const handleOpenMeasurements = (process) => {
+    setSelectedProcess(process);
+    setShowMeasurements(true);
+  };
+
+  const handleBackFromMeasurements = () => {
+    setShowMeasurements(false);
+    setSelectedProcess(null);
+  };
+
   const filteredProcesses = processes.filter(process => {
     const matchesSearch = process.number.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          process.company.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -259,6 +270,15 @@ const ProcessManagement = () => {
     const tag = availableTags.find(t => t.name === tagName);
     return tag ? tag.color : 'bg-gray-500';
   };
+
+  if (showMeasurements && selectedProcess) {
+    return (
+      <ProcessMeasurements 
+        process={selectedProcess} 
+        onBack={handleBackFromMeasurements} 
+      />
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -517,6 +537,9 @@ const ProcessManagement = () => {
                   </Button>
                   <Button variant="outline" size="sm" onClick={() => handleEditProcess(process)}>
                     <Edit className="w-4 h-4" />
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => handleOpenMeasurements(process)}>
+                    <Calculator className="w-4 h-4" />
                   </Button>
                   <Button variant="outline" size="sm">
                     <FileText className="w-4 h-4" />

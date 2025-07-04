@@ -14,9 +14,11 @@ interface ProcessMeasurementsProps {
 
 const ProcessMeasurements = ({ process, onBack }: ProcessMeasurementsProps) => {
   const [measurements, setMeasurements] = useState<string[]>(
-    Array(10).fill('').map((_, index) => '')
+    Array(12).fill('').map((_, index) => '')
   );
   const [totalBalance, setTotalBalance] = useState('');
+  const [globalValue, setGlobalValue] = useState('');
+  const [ceilingValue, setCeilingValue] = useState('');
 
   const handleMeasurementChange = (index: number, value: string) => {
     const newMeasurements = [...measurements];
@@ -87,9 +89,40 @@ const ProcessMeasurements = ({ process, onBack }: ProcessMeasurementsProps) => {
               <p className="font-medium">{process.status}</p>
             </div>
           </div>
+          
           <div className="mt-4">
             <span className="text-gray-500">Objeto:</span>
             <p className="font-medium">{process.object}</p>
+          </div>
+
+          {/* Novos campos: Valor Global e Valor Teto */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6 pt-4 border-t">
+            <div>
+              <Label htmlFor="global-value" className="text-sm font-semibold text-gray-700">
+                Valor Global
+              </Label>
+              <Input
+                id="global-value"
+                type="text"
+                value={globalValue}
+                onChange={(e) => setGlobalValue(e.target.value)}
+                placeholder="R$ 0,00"
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <Label htmlFor="ceiling-value" className="text-sm font-semibold text-gray-700">
+                Valor Teto
+              </Label>
+              <Input
+                id="ceiling-value"
+                type="text"
+                value={ceilingValue}
+                onChange={(e) => setCeilingValue(e.target.value)}
+                placeholder="R$ 0,00"
+                className="mt-1"
+              />
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -106,10 +139,10 @@ const ProcessMeasurements = ({ process, onBack }: ProcessMeasurementsProps) => {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {measurements.map((measurement, index) => (
               <div key={index}>
-                <Label htmlFor={`measurement-${index}`}>
+                <Label htmlFor={`measurement-${index}`} className="text-sm font-medium">
                   Medição {index + 1}
                 </Label>
                 <Input

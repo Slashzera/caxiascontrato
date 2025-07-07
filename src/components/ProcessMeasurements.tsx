@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { ArrowLeft, Save, Calculator } from 'lucide-react';
+import { ArrowLeft, Save, Calculator, Plus, Trash2 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
 interface ProcessMeasurementsProps {
@@ -13,23 +13,51 @@ interface ProcessMeasurementsProps {
 }
 
 const ProcessMeasurements = ({ process, onBack }: ProcessMeasurementsProps) => {
-  const [measurements, setMeasurements] = useState<string[]>(
-    Array(12).fill('').map((_, index) => '')
-  );
+  const [measurements, setMeasurements] = useState<{[key: number]: string[]}>(() => {
+    const initialMeasurements: {[key: number]: string[]} = {};
+    for (let i = 0; i < 12; i++) {
+      initialMeasurements[i] = [''];
+    }
+    return initialMeasurements;
+  });
   const [totalBalance, setTotalBalance] = useState('');
   const [globalValue, setGlobalValue] = useState('');
   const [ceilingValue, setCeilingValue] = useState('');
 
-  const handleMeasurementChange = (index: number, value: string) => {
-    const newMeasurements = [...measurements];
-    newMeasurements[index] = value;
-    setMeasurements(newMeasurements);
+  const handleMeasurementChange = (measurementIndex: number, fieldIndex: number, value: string) => {
+    setMeasurements(prev => ({
+      ...prev,
+      [measurementIndex]: prev[measurementIndex].map((field, idx) => 
+        idx === fieldIndex ? value : field
+      )
+    }));
+  };
+
+  const addFieldToMeasurement = (measurementIndex: number) => {
+    setMeasurements(prev => ({
+      ...prev,
+      [measurementIndex]: [...prev[measurementIndex], '']
+    }));
+  };
+
+  const removeFieldFromMeasurement = (measurementIndex: number, fieldIndex: number) => {
+    if (measurements[measurementIndex].length > 1) {
+      setMeasurements(prev => ({
+        ...prev,
+        [measurementIndex]: prev[measurementIndex].filter((_, idx) => idx !== fieldIndex)
+      }));
+    }
   };
 
   const calculateTotal = () => {
-    const total = measurements
-      .filter(m => m && !isNaN(parseFloat(m.replace(',', '.'))))
-      .reduce((sum, m) => sum + parseFloat(m.replace(',', '.')), 0);
+    let total = 0;
+    Object.values(measurements).forEach(measurementFields => {
+      measurementFields.forEach(field => {
+        if (field && !isNaN(parseFloat(field.replace(',', '.')))) {
+          total += parseFloat(field.replace(',', '.'));
+        }
+      });
+    });
     
     setTotalBalance(total.toLocaleString('pt-BR', { 
       style: 'currency', 
@@ -139,20 +167,46 @@ const ProcessMeasurements = ({ process, onBack }: ProcessMeasurementsProps) => {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {measurements.map((measurement, index) => (
-              <div key={index}>
-                <Label htmlFor={`measurement-${index}`} className="text-sm font-medium">
-                  Medição {index + 1}
-                </Label>
-                <Input
-                  id={`measurement-${index}`}
-                  type="text"
-                  value={measurement}
-                  onChange={(e) => handleMeasurementChange(index, e.target.value)}
-                  placeholder="R$ 0,00"
-                  className="mt-1"
-                />
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {Object.entries(measurements).map(([measurementIndex, fields]) => (
+              <div key={measurementIndex} className="border rounded-lg p-4 bg-gray-50">
+                <div className="flex items-center justify-between mb-3">
+                  <Label className="text-sm font-medium">
+                    Medição {Number(measurementIndex) + 1}
+                  </Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => addFieldToMeasurement(Number(measurementIndex))}
+                  >
+                    <Plus className="w-3 h-3" />
+                  </Button>
+                </div>
+                
+                <div className="space-y-2">
+                  {fields.map((field, fieldIndex) => (
+                    <div key={fieldIndex} className="flex gap-1">
+                      <Input
+                        type="text"
+                        value={field}
+                        onChange={(e) => handleMeasurementChange(Number(measurementIndex), fieldIndex, e.target.value)}
+                        placeholder="R$ 0,00"
+                        className="flex-1"
+                      />
+                      {fields.length > 1 && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => removeFieldFromMeasurement(Number(measurementIndex), fieldIndex)}
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+                </div>
               </div>
             ))}
           </div>

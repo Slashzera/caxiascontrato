@@ -99,6 +99,7 @@ const ProcessManagement = () => {
   const [selectedProcess, setSelectedProcess] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [typeFilter, setTypeFilter] = useState('all');
 
   const processTypes = [
     'Inexigibilidade',
@@ -263,7 +264,8 @@ const ProcessManagement = () => {
                          process.company.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          process.type.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'all' || process.status === statusFilter;
-    return matchesSearch && matchesStatus;
+    const matchesType = typeFilter === 'all' || process.type === typeFilter;
+    return matchesSearch && matchesStatus && matchesType;
   });
 
   const getTagColor = (tagName) => {
@@ -455,6 +457,17 @@ const ProcessManagement = () => {
                 />
               </div>
             </div>
+            <Select value={typeFilter} onValueChange={setTypeFilter}>
+              <SelectTrigger className="w-48">
+                <SelectValue placeholder="Filtrar por tipo" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os Tipos</SelectItem>
+                {processTypes.map((type) => (
+                  <SelectItem key={type} value={type}>{type}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="w-48">
                 <SelectValue placeholder="Filtrar por status" />

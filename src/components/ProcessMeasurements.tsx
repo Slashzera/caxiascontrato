@@ -1,11 +1,12 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ArrowLeft, Save, Calculator, Plus, Trash2 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 interface ProcessMeasurementsProps {
   process: any;
@@ -70,11 +71,57 @@ const ProcessMeasurements = ({ process, onBack }: ProcessMeasurementsProps) => {
     });
   };
 
-  const handleSave = () => {
-    toast({
-      title: "Medições salvas!",
-      description: "As medições foram salvas com sucesso.",
-    });
+  const handleSave = async () => {
+    try {
+      // Save measurements to database
+      const measurementData = [];
+      Object.entries(measurements).forEach(([measurementIndex, fields]) => {
+        fields.forEach((field, fieldIndex) => {
+          if (field && !isNaN(parseFloat(field.replace(',', '.')))) {
+            measurementData.push({
+              process_id: process.id, // You'll need to pass the actual process ID
+              measurement_index: parseInt(measurementIndex),
+              field_index: fieldIndex,
+              value: parseFloat(field.replace(',', '.'))
+            });
+          }
+        });
+      });
+
+      if (measurementData.length > 0) {
+        const { error } = await supabase
+          .from('process_measurements')
+          .upsert(measurementData);
+
+        if (error) throw error;
+      }
+
+      // Update global and ceiling values
+      if (globalValue || ceilingValue) {
+        const updateData: any = {};
+        if (globalValue) updateData.global_value = parseFloat(globalValue.replace(/[^\d,]/g, '').replace(',', '.'));
+        if (ceilingValue) updateData.ceiling_value = parseFloat(ceilingValue.replace(/[^\d,]/g, '').replace(',', '.'));
+
+        const { error } = await supabase
+          .from('processes')
+          .update(updateData)
+          .eq('process_number', process.number);
+
+        if (error) throw error;
+      }
+
+      toast({
+        title: "Medições salvas!",
+        description: "As medições foram salvas com sucesso.",
+      });
+    } catch (error) {
+      console.error('Error saving measurements:', error);
+      toast({
+        title: "Erro ao salvar",
+        description: "Não foi possível salvar as medições",
+        variant: "destructive",
+      });
+    }
   };
 
   return (

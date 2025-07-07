@@ -1,58 +1,38 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Users, Search, Eye, Edit, Phone, Mail, Building } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/hooks/use-toast';
 
 const CompanyManagement = () => {
-  const [companies] = useState([
-    {
-      id: 1,
-      name: 'MedSupply Ltda',
-      cnpj: '12.345.678/0001-90',
-      contact: 'João Silva',
-      phone: '(21) 3456-7890',
-      email: 'contato@medsupply.com.br',
-      address: 'Rua das Flores, 123 - Centro, Duque de Caxias/RJ',
-      activeContracts: 3,
-      status: 'Ativo'
-    },
-    {
-      id: 2,
-      name: 'HealthCorp SA',
-      cnpj: '98.765.432/0001-10',
-      contact: 'Maria Santos',
-      phone: '(21) 2987-6543',
-      email: 'comercial@healthcorp.com.br',
-      address: 'Av. Principal, 456 - Jardim Primavera, Duque de Caxias/RJ',
-      activeContracts: 2,
-      status: 'Ativo'
-    },
-    {
-      id: 3,
-      name: 'BioMed Soluções',
-      cnpj: '11.222.333/0001-44',
-      contact: 'Carlos Costa',
-      phone: '(21) 3214-5678',
-      email: 'atendimento@biomed.com.br',
-      address: 'Rua da Saúde, 789 - Vila Nova, Duque de Caxias/RJ',
-      activeContracts: 1,
-      status: 'Ativo'
-    },
-    {
-      id: 4,
-      name: 'TechMed Equipamentos',
-      cnpj: '44.555.666/0001-77',
-      contact: 'Ana Oliveira',
-      phone: '(21) 3789-0123',
-      email: 'vendas@techmed.com.br',
-      address: 'Rua dos Equipamentos, 321 - Industrial, Duque de Caxias/RJ',
-      activeContracts: 0,
-      status: 'Inativo'
+  const [companies, setCompanies] = useState([]);
+
+  useEffect(() => {
+    fetchCompanies();
+  }, []);
+
+  const fetchCompanies = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('companies')
+        .select('*')
+        .order('name');
+
+      if (error) throw error;
+      setCompanies(data || []);
+    } catch (error) {
+      console.error('Error fetching companies:', error);
+      toast({
+        title: "Erro ao carregar empresas",
+        description: "Não foi possível carregar as empresas",
+        variant: "destructive",
+      });
     }
-  ]);
+  };
 
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -150,7 +130,7 @@ const CompanyManagement = () => {
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-blue-800">Contratos Ativos</span>
                     <Badge variant="outline" className="bg-blue-100 text-blue-800">
-                      {company.activeContracts}
+                      {company.active_contracts}
                     </Badge>
                   </div>
                 </div>

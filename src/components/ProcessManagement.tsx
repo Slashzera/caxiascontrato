@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,6 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Plus, Search, Eye, Edit, FileText, Calendar, Tag, CheckSquare, Trash2, Calculator } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 import ProcessMeasurements from './ProcessMeasurements';
 
 const ProcessManagement = () => {
@@ -44,53 +45,64 @@ const ProcessManagement = () => {
     { name: 'LOCAÇÃO- PRORROGAÇÃO...', color: 'bg-cyan-500' }
   ];
 
-  const [processes, setProcesses] = useState([
-    {
-      id: '2024/001',
-      type: 'Inexigibilidade',
-      number: 'PROC-2024-001',
-      openDate: '15/01/2024',
-      responsible: 'Maria Silva',
-      status: 'Em Andamento',
-      company: 'MedSupply Ltda',
-      object: 'Aquisição de equipamentos médicos',
-      value: 'R$ 85.000,00',
-      tags: ['PRESTAÇÃO DE SERVIÇO', 'URGENTE'],
-      checklist: [
-        { id: 1, text: 'Documentação da empresa verificada', completed: true },
-        { id: 2, text: 'Orçamento aprovado', completed: false }
-      ]
-    },
-    {
-      id: '2024/002',
-      type: 'Termo Aditivo',
-      number: 'PROC-2024-002',
-      openDate: '18/01/2024',
-      responsible: 'João Santos',
-      status: 'Pendente',
-      company: 'HealthCorp SA',
-      object: 'Prorrogação de contrato de serviços',
-      value: 'R$ 120.000,00',
-      tags: ['PRORROGAÇÃO'],
-      checklist: []
-    },
-    {
-      id: '2024/003',
-      type: 'Reajuste de Preços',
-      number: 'PROC-2024-003',
-      openDate: '20/01/2024',
-      responsible: 'Ana Costa',
-      status: 'Concluído',
-      company: 'BioMed Soluções',
-      object: 'Reajuste anual de medicamentos',
-      value: 'R$ 45.000,00',
-      tags: ['RESOLVIDO'],
-      checklist: [
-        { id: 1, text: 'Cálculo de reajuste aprovado', completed: true },
-        { id: 2, text: 'Termo assinado', completed: true }
-      ]
+  const [processes, setProcesses] = useState([]);
+  const [companies, setCompanies] = useState([]);
+
+  useEffect(() => {
+    fetchProcesses();
+    fetchCompanies();
+  }, []);
+
+  const fetchProcesses = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('processes')
+        .select(`
+          *,
+          companies (name)
+        `)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      const formattedProcesses = (data || []).map(process => ({
+        id: process.process_number,
+        type: process.process_type,
+        number: process.process_number,
+        openDate: new Date(process.created_at).toLocaleDateString('pt-BR'),
+        responsible: process.responsible,
+        status: process.status,
+        company: process.companies?.name || 'N/A',
+        object: process.object,
+        value: process.value ? `R$ ${process.value.toLocaleString('pt-BR')}` : 'N/A',
+        tags: [], // You can add tags logic here
+        checklist: [] // You can add checklist logic here
+      }));
+
+      setProcesses(formattedProcesses);
+    } catch (error) {
+      console.error('Error fetching processes:', error);
+      toast({
+        title: "Erro ao carregar processos",
+        description: "Não foi possível carregar os processos",
+        variant: "destructive",
+      });
     }
-  ]);
+  };
+
+  const fetchCompanies = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('companies')
+        .select('*')
+        .order('name');
+
+      if (error) throw error;
+      setCompanies(data || []);
+    } catch (error) {
+      console.error('Error fetching companies:', error);
+    }
+  };
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
@@ -129,7 +141,7 @@ const ProcessManagement = () => {
 
   const [newChecklistItem, setNewChecklistItem] = useState('');
 
-  const handleCreateProcess = () => {
+  const handleCreateProcess = async () => {
     if (!newProcess.type || !newProcess.number || !newProcess.responsible) {
       toast({
         title: "Campos obrigatórios",
@@ -139,36 +151,56 @@ const ProcessManagement = () => {
       return;
     }
 
-    const process = {
-      id: `2024/${String(processes.length + 1).padStart(3, '0')}`,
-      ...newProcess,
-      openDate: new Date().toLocaleDateString('pt-BR'),
-      status: 'Em Andamento',
-      checklist: newProcess.checklist.map((item, index) => ({
-        id: index + 1,
-        text: item,
-        completed: false
-      }))
-    };
+    try {
+      // Find company ID if company is selected
+      let companyId = null;
+      if (newProcess.company) {
+        const company = companies.find(c => c.name === newProcess.company);
+        companyId = company?.id || null;
+      }
 
-    setProcesses([...processes, process]);
-    setNewProcess({
-      type: '',
-      number: '',
-      responsible: '',
-      company: '',
-      object: '',
-      value: '',
-      description: '',
-      tags: [],
-      checklist: []
-    });
-    setIsDialogOpen(false);
-    
-    toast({
-      title: "Processo criado com sucesso!",
-      description: `Processo ${process.id} foi criado`,
-    });
+      const { data, error } = await supabase
+        .from('processes')
+        .insert({
+          process_number: newProcess.number,
+          process_type: newProcess.type,
+          company_id: companyId,
+          responsible: newProcess.responsible,
+          object: newProcess.object,
+          value: newProcess.value ? parseFloat(newProcess.value.replace(/[^\d,]/g, '').replace(',', '.')) : null,
+          status: 'Em Andamento'
+        })
+        .select();
+
+      if (error) throw error;
+
+      await fetchProcesses();
+      
+      setNewProcess({
+        type: '',
+        number: '',
+        responsible: '',
+        company: '',
+        object: '',
+        value: '',
+        description: '',
+        tags: [],
+        checklist: []
+      });
+      setIsDialogOpen(false);
+      
+      toast({
+        title: "Processo criado com sucesso!",
+        description: `Processo ${newProcess.number} foi criado`,
+      });
+    } catch (error) {
+      console.error('Error creating process:', error);
+      toast({
+        title: "Erro ao criar processo",
+        description: "Não foi possível criar o processo",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleViewProcess = (process) => {
@@ -338,12 +370,16 @@ const ProcessManagement = () => {
               
               <div>
                 <Label htmlFor="company">Empresa</Label>
-                <Input
-                  id="company"
-                  value={newProcess.company}
-                  onChange={(e) => setNewProcess({...newProcess, company: e.target.value})}
-                  placeholder="Nome da empresa"
-                />
+                <Select value={newProcess.company} onValueChange={(value) => setNewProcess({...newProcess, company: value})}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione uma empresa" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {companies.map((company) => (
+                      <SelectItem key={company.id} value={company.name}>{company.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               
               <div className="col-span-2">

@@ -1,55 +1,54 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { FolderOpen, Search, Upload, Eye, Download, File } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/hooks/use-toast';
 
 const DocumentManagement = () => {
-  const [documents] = useState([
-    {
-      id: 1,
-      name: 'Contrato_MedSupply_2024.pdf',
-      type: 'Contrato',
-      process: 'PROC-2024-001',
-      uploadDate: '15/01/2024',
-      size: '2.3 MB',
-      uploadedBy: 'Maria Silva',
-      status: 'Aprovado'
-    },
-    {
-      id: 2,
-      name: 'Termo_Aditivo_HealthCorp.pdf',
-      type: 'Termo Aditivo',
-      process: 'PROC-2024-002',
-      uploadDate: '18/01/2024',
-      size: '1.8 MB',
-      uploadedBy: 'João Santos',
-      status: 'Pendente'
-    },
-    {
-      id: 3,
-      name: 'Planilha_Reajuste_BioMed.xlsx',
-      type: 'Planilha',
-      process: 'PROC-2024-003',
-      uploadDate: '20/01/2024',
-      size: '856 KB',
-      uploadedBy: 'Ana Costa',
-      status: 'Aprovado'
-    },
-    {
-      id: 4,
-      name: 'Parecer_Juridico_001.docx',
-      type: 'Parecer',
-      process: 'PROC-2024-001',
-      uploadDate: '22/01/2024',
-      size: '1.2 MB',
-      uploadedBy: 'Dr. Carlos Silva',
-      status: 'Aprovado'
+  const [documents, setDocuments] = useState([]);
+
+  useEffect(() => {
+    fetchDocuments();
+  }, []);
+
+  const fetchDocuments = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('documents')
+        .select(`
+          *,
+          processes (process_number)
+        `)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      const formattedDocuments = (data || []).map(doc => ({
+        id: doc.id,
+        name: doc.name,
+        type: doc.type,
+        process: doc.processes?.process_number || 'N/A',
+        uploadDate: new Date(doc.upload_date).toLocaleDateString('pt-BR'),
+        size: doc.size,
+        uploadedBy: doc.uploaded_by,
+        status: doc.status
+      }));
+
+      setDocuments(formattedDocuments);
+    } catch (error) {
+      console.error('Error fetching documents:', error);
+      toast({
+        title: "Erro ao carregar documentos",
+        description: "Não foi possível carregar os documentos",
+        variant: "destructive",
+      });
     }
-  ]);
+  };
 
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');

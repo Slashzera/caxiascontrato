@@ -14,7 +14,249 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      companies: {
+        Row: {
+          active_contracts: number | null
+          address: string | null
+          cnpj: string
+          contact: string | null
+          created_at: string
+          email: string | null
+          id: string
+          name: string
+          phone: string | null
+          status: string | null
+          updated_at: string
+        }
+        Insert: {
+          active_contracts?: number | null
+          address?: string | null
+          cnpj: string
+          contact?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          name: string
+          phone?: string | null
+          status?: string | null
+          updated_at?: string
+        }
+        Update: {
+          active_contracts?: number | null
+          address?: string | null
+          cnpj?: string
+          contact?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          name?: string
+          phone?: string | null
+          status?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      contracts: {
+        Row: {
+          company_id: string | null
+          contract_number: string
+          created_at: string
+          end_date: string
+          fiscal_responsible: string | null
+          id: string
+          object: string
+          start_date: string
+          status: string | null
+          updated_at: string
+          value: number
+        }
+        Insert: {
+          company_id?: string | null
+          contract_number: string
+          created_at?: string
+          end_date: string
+          fiscal_responsible?: string | null
+          id?: string
+          object: string
+          start_date: string
+          status?: string | null
+          updated_at?: string
+          value: number
+        }
+        Update: {
+          company_id?: string | null
+          contract_number?: string
+          created_at?: string
+          end_date?: string
+          fiscal_responsible?: string | null
+          id?: string
+          object?: string
+          start_date?: string
+          status?: string | null
+          updated_at?: string
+          value?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contracts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      documents: {
+        Row: {
+          created_at: string
+          file_url: string | null
+          id: string
+          name: string
+          process_id: string | null
+          size: string | null
+          status: string | null
+          type: string
+          updated_at: string
+          upload_date: string | null
+          uploaded_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          file_url?: string | null
+          id?: string
+          name: string
+          process_id?: string | null
+          size?: string | null
+          status?: string | null
+          type: string
+          updated_at?: string
+          upload_date?: string | null
+          uploaded_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          file_url?: string | null
+          id?: string
+          name?: string
+          process_id?: string | null
+          size?: string | null
+          status?: string | null
+          type?: string
+          updated_at?: string
+          upload_date?: string | null
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "documents_process_id_fkey"
+            columns: ["process_id"]
+            isOneToOne: false
+            referencedRelation: "processes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      process_measurements: {
+        Row: {
+          created_at: string
+          field_index: number
+          id: string
+          measurement_index: number
+          process_id: string | null
+          updated_at: string
+          value: number | null
+        }
+        Insert: {
+          created_at?: string
+          field_index: number
+          id?: string
+          measurement_index: number
+          process_id?: string | null
+          updated_at?: string
+          value?: number | null
+        }
+        Update: {
+          created_at?: string
+          field_index?: number
+          id?: string
+          measurement_index?: number
+          process_id?: string | null
+          updated_at?: string
+          value?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "process_measurements_process_id_fkey"
+            columns: ["process_id"]
+            isOneToOne: false
+            referencedRelation: "processes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      processes: {
+        Row: {
+          ceiling_value: number | null
+          company_id: string | null
+          contract_id: string | null
+          created_at: string
+          global_value: number | null
+          id: string
+          object: string | null
+          process_number: string
+          process_type: string
+          responsible: string | null
+          status: string | null
+          updated_at: string
+          value: number | null
+        }
+        Insert: {
+          ceiling_value?: number | null
+          company_id?: string | null
+          contract_id?: string | null
+          created_at?: string
+          global_value?: number | null
+          id?: string
+          object?: string | null
+          process_number: string
+          process_type: string
+          responsible?: string | null
+          status?: string | null
+          updated_at?: string
+          value?: number | null
+        }
+        Update: {
+          ceiling_value?: number | null
+          company_id?: string | null
+          contract_id?: string | null
+          created_at?: string
+          global_value?: number | null
+          id?: string
+          object?: string | null
+          process_number?: string
+          process_type?: string
+          responsible?: string | null
+          status?: string | null
+          updated_at?: string
+          value?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "processes_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "processes_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "contracts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

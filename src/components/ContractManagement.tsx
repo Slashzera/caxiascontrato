@@ -1,47 +1,54 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Building2, Search, Eye, Edit, Calendar, DollarSign } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/hooks/use-toast';
 
 const ContractManagement = () => {
-  const [contracts] = useState([
-    {
-      id: 'CT-2024-001',
-      company: 'MedSupply Ltda',
-      object: 'Fornecimento de equipamentos médicos',
-      startDate: '01/01/2024',
-      endDate: '31/12/2024',
-      value: 'R$ 850.000,00',
-      status: 'Vigente',
-      fiscalResponsible: 'Dr. Carlos Silva',
-      cnpj: '12.345.678/0001-90'
-    },
-    {
-      id: 'CT-2023-089',
-      company: 'HealthCorp SA',
-      object: 'Serviços de manutenção hospitalar',
-      startDate: '15/06/2023',
-      endDate: '14/06/2024',
-      value: 'R$ 1.200.000,00',
-      status: 'Vencendo',
-      fiscalResponsible: 'Eng. Ana Costa',
-      cnpj: '98.765.432/0001-10'
-    },
-    {
-      id: 'CT-2023-156',
-      company: 'BioMed Soluções',
-      object: 'Fornecimento de medicamentos',
-      startDate: '01/03/2023',
-      endDate: '28/02/2024',
-      value: 'R$ 450.000,00',
-      status: 'Vigente',
-      fiscalResponsible: 'Farm. Maria Santos',
-      cnpj: '11.222.333/0001-44'
+  const [contracts, setContracts] = useState([]);
+
+  useEffect(() => {
+    fetchContracts();
+  }, []);
+
+  const fetchContracts = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('contracts')
+        .select(`
+          *,
+          companies (name, cnpj)
+        `)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      const formattedContracts = (data || []).map(contract => ({
+        id: contract.contract_number,
+        company: contract.companies?.name || 'N/A',
+        object: contract.object,
+        startDate: new Date(contract.start_date).toLocaleDateString('pt-BR'),
+        endDate: new Date(contract.end_date).toLocaleDateString('pt-BR'),
+        value: `R$ ${contract.value.toLocaleString('pt-BR')}`,
+        status: contract.status,
+        fiscalResponsible: contract.fiscal_responsible,
+        cnpj: contract.companies?.cnpj || 'N/A'
+      }));
+
+      setContracts(formattedContracts);
+    } catch (error) {
+      console.error('Error fetching contracts:', error);
+      toast({
+        title: "Erro ao carregar contratos",
+        description: "Não foi possível carregar os contratos",
+        variant: "destructive",
+      });
     }
-  ]);
+  };
 
   const [searchTerm, setSearchTerm] = useState('');
 

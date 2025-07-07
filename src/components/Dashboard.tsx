@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
@@ -14,36 +14,98 @@ import {
   ClipboardList
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { supabase } from '@/integrations/supabase/client';
 
 const Dashboard = () => {
-  const stats = [
-    { title: 'Processos Ativos', value: 87, icon: FileText, color: 'text-blue-600', bg: 'bg-blue-50' },
-    { title: 'Contratos Vigentes', value: 142, icon: Building2, color: 'text-green-600', bg: 'bg-green-50' },
-    { title: 'Empresas Cadastradas', value: 89, icon: Users, color: 'text-purple-600', bg: 'bg-purple-50' },
-    { title: 'Alertas Pendentes', value: 12, icon: AlertTriangle, color: 'text-red-600', bg: 'bg-red-50' },
-  ];
+  const [stats, setStats] = useState([
+    { title: 'Processos Ativos', value: 0, icon: FileText, color: 'text-blue-600', bg: 'bg-blue-50' },
+    { title: 'Contratos Vigentes', value: 0, icon: Building2, color: 'text-green-600', bg: 'bg-green-50' },
+    { title: 'Empresas Cadastradas', value: 0, icon: Users, color: 'text-purple-600', bg: 'bg-purple-50' },
+    { title: 'Alertas Pendentes', value: 0, icon: AlertTriangle, color: 'text-red-600', bg: 'bg-red-50' },
+  ]);
+  const [recentProcesses, setRecentProcesses] = useState([]);
+  const [processData, setProcessData] = useState([]);
+  const [statusData, setStatusData] = useState([]);
 
-  const processData = [
-    { name: 'Jan', value: 12 },
-    { name: 'Fev', value: 19 },
-    { name: 'Mar', value: 15 },
-    { name: 'Abr', value: 22 },
-    { name: 'Mai', value: 18 },
-    { name: 'Jun', value: 25 },
-  ];
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
 
-  const statusData = [
-    { name: 'Em Andamento', value: 45, color: '#3B82F6' },
-    { name: 'Concluídos', value: 30, color: '#10B981' },
-    { name: 'Pendentes', value: 15, color: '#F59E0B' },
-    { name: 'Cancelados', value: 10, color: '#EF4444' },
-  ];
+  const fetchDashboardData = async () => {
+    try {
+      // Fetch stats
+      const [processesResult, contractsResult, companiesResult] = await Promise.all([
+        supabase.from('processes').select('*'),
+        supabase.from('contracts').select('*'),
+        supabase.from('companies').select('*')
+      ]);
 
-  const recentProcesses = [
-    { id: '2024/001', type: 'Inexigibilidade', company: 'MedSupply Ltda', status: 'Em Andamento', date: '15/01/2024' },
-    { id: '2024/002', type: 'Termo Aditivo', company: 'HealthCorp SA', status: 'Pendente', date: '18/01/2024' },
-    { id: '2024/003', type: 'Reajuste', company: 'BioMed Soluções', status: 'Concluído', date: '20/01/2024' },
-  ];
+      // Calculate status data
+      const processes = processesResult.data || [];
+      const statusCounts = processes.reduce((acc, process) => {
+        acc[process.status] = (acc[process.status] || 0) + 1;
+        return acc;
+      }, {});
+
+      const statusColors = {
+        'Em Andamento': '#3B82F6',
+        'Concluído': '#10B981',
+        'Pendente': '#F59E0B',
+        'Cancelado': '#EF4444'
+      };
+
+      setStatusData(Object.entries(statusCounts).map(([name, value]) => ({
+        name,
+        value,
+        color: statusColors[name] || '#6B7280'
+      })));
+
+      // Calculate stats
+      const activeProcesses = processes.filter(p => p.status === 'Em Andamento').length;
+      const activeContracts = (contractsResult.data || []).filter(c => c.status === 'Vigente').length;
+      const totalCompanies = (companiesResult.data || []).length;
+      const pendingAlerts = processes.filter(p => p.status === 'Pendente').length;
+
+      setStats([
+        { title: 'Processos Ativos', value: activeProcesses, icon: FileText, color: 'text-blue-600', bg: 'bg-blue-50' },
+        { title: 'Contratos Vigentes', value: activeContracts, icon: Building2, color: 'text-green-600', bg: 'bg-green-50' },
+        { title: 'Empresas Cadastradas', value: totalCompanies, icon: Users, color: 'text-purple-600', bg: 'bg-purple-50' },
+        { title: 'Alertas Pendentes', value: pendingAlerts, icon: AlertTriangle, color: 'text-red-600', bg: 'bg-red-50' },
+      ]);
+
+      // Get recent processes with company data
+      const { data: recentProcessesData } = await supabase
+        .from('processes')
+        .select(`
+          *,
+          companies (name)
+        `)
+        .order('created_at', { ascending: false })
+        .limit(3);
+
+      setRecentProcesses((recentProcessesData || []).map(process => ({
+        id: process.process_number,
+        type: process.process_type,
+        company: process.companies?.name || 'N/A',
+        status: process.status,
+        date: new Date(process.created_at).toLocaleDateString('pt-BR')
+      })));
+
+      // Generate sample monthly data (you can enhance this with real data)
+      setProcessData([
+        { name: 'Jan', value: Math.floor(processes.length * 0.15) },
+        { name: 'Fev', value: Math.floor(processes.length * 0.18) },
+        { name: 'Mar', value: Math.floor(processes.length * 0.12) },
+        { name: 'Abr', value: Math.floor(processes.length * 0.20) },
+        { name: 'Mai', value: Math.floor(processes.length * 0.16) },
+        { name: 'Jun', value: Math.floor(processes.length * 0.19) },
+      ]);
+
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error);
+    }
+  };
+
 
   const upcomingDeadlines = [
     { process: '2023/089', deadline: '28/01/2024', type: 'Vencimento Contrato', priority: 'Alta' },

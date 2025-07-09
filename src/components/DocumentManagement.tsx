@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { FolderOpen, Search, Upload, Eye, Download, File } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+import NewDocumentForm from './NewDocumentForm';
 
 const DocumentManagement = () => {
   const [documents, setDocuments] = useState([]);
@@ -90,10 +91,7 @@ const DocumentManagement = () => {
           <p className="text-gray-600">Centralizar e organizar documentos dos processos</p>
         </div>
         
-        <Button className="bg-blue-600 hover:bg-blue-700">
-          <Upload className="w-4 h-4 mr-2" />
-          Upload Documento
-        </Button>
+        <NewDocumentForm onDocumentCreated={fetchDocuments} />
       </div>
 
       {/* Filters */}

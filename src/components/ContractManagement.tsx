@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Building2, Search, Eye, Edit, Calendar, DollarSign } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+import NewContractForm from './NewContractForm';
 
 const ContractManagement = () => {
   const [contracts, setContracts] = useState([]);
@@ -79,10 +80,7 @@ const ContractManagement = () => {
           <p className="text-gray-600">Controlar contratos administrativos e suas vigências</p>
         </div>
         
-        <Button className="bg-blue-600 hover:bg-blue-700">
-          <Building2 className="w-4 h-4 mr-2" />
-          Novo Contrato
-        </Button>
+        <NewContractForm onContractCreated={fetchContracts} />
       </div>
 
       {/* Search */}

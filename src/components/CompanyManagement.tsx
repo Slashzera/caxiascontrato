@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Users, Search, Eye, Edit, Phone, Mail, Building } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+import NewCompanyForm from './NewCompanyForm';
 
 const CompanyManagement = () => {
   const [companies, setCompanies] = useState([]);
@@ -54,10 +55,7 @@ const CompanyManagement = () => {
           <p className="text-gray-600">Cadastro e informações das empresas contratadas</p>
         </div>
         
-        <Button className="bg-blue-600 hover:bg-blue-700">
-          <Users className="w-4 h-4 mr-2" />
-          Nova Empresa
-        </Button>
+        <NewCompanyForm onCompanyCreated={fetchCompanies} />
       </div>
 
       {/* Search */}

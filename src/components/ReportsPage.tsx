@@ -1,5 +1,6 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -12,6 +13,11 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 const ReportsPage = () => {
   const [selectedReport, setSelectedReport] = useState('processes');
   const [dateRange, setDateRange] = useState('last30days');
+  const [summaryStats, setSummaryStats] = useState([]);
+  const [processData, setProcessData] = useState([]);
+  const [valueData, setValueData] = useState([]);
+  const [recentActivities, setRecentActivities] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   const reportTypes = [
     { id: 'processes', name: 'Relatório de Processos', icon: FileText },
@@ -20,30 +26,201 @@ const ReportsPage = () => {
     { id: 'financial', name: 'Relatório Financeiro', icon: BarChart3 },
   ];
 
-  const processData = [
-    { month: 'Jan', inexigibilidade: 4, termoAditivo: 6, reajuste: 3, outros: 2 },
-    { month: 'Fev', inexigibilidade: 7, termoAditivo: 4, reajuste: 5, outros: 3 },
-    { month: 'Mar', inexigibilidade: 5, termoAditivo: 8, reajuste: 2, outros: 4 },
-    { month: 'Abr', inexigibilidade: 6, termoAditivo: 5, reajuste: 7, outros: 2 },
-    { month: 'Mai', inexigibilidade: 8, termoAditivo: 7, reajuste: 4, outros: 5 },
-    { month: 'Jun', inexigibilidade: 9, termoAditivo: 6, reajuste: 6, outros: 3 },
-  ];
+  useEffect(() => {
+    fetchReportData();
+  }, [dateRange]);
 
-  const valueData = [
-    { month: 'Jan', valor: 850000 },
-    { month: 'Fev', valor: 920000 },
-    { month: 'Mar', valor: 780000 },
-    { month: 'Abr', valor: 1100000 },
-    { month: 'Mai', valor: 950000 },
-    { month: 'Jun', valor: 1250000 },
-  ];
+  const fetchReportData = async () => {
+    setLoading(true);
+    try {
+      await Promise.all([
+        fetchSummaryStats(),
+        fetchProcessData(),
+        fetchValueData(),
+        fetchRecentActivities()
+      ]);
+    } catch (error) {
+      console.error('Erro ao carregar dados dos relatórios:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  const summaryStats = [
-    { title: 'Total de Processos', value: '87', subtitle: 'Últimos 30 dias', color: 'text-blue-600' },
-    { title: 'Valor Total Contratado', value: 'R$ 5.8M', subtitle: 'Este ano', color: 'text-green-600' },
-    { title: 'Tempo Médio', value: '45 dias', subtitle: 'Conclusão processo', color: 'text-purple-600' },
-    { title: 'Taxa de Aprovação', value: '92%', subtitle: 'Processos aprovados', color: 'text-orange-600' },
-  ];
+  const fetchSummaryStats = async () => {
+    const [processesResult, contractsResult, companiesResult] = await Promise.all([
+      supabase.from('processes').select('*'),
+      supabase.from('contracts').select('value'),
+      supabase.from('companies').select('*')
+    ]);
+
+    const totalProcesses = processesResult.data?.length || 0;
+    const totalValue = contractsResult.data?.reduce((sum, contract) => sum + (contract.value || 0), 0) || 0;
+    const totalCompanies = companiesResult.data?.length || 0;
+
+    // Calcular processos dos últimos 30 dias
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    
+    const recentProcesses = processesResult.data?.filter(process => 
+      new Date(process.created_at) >= thirtyDaysAgo
+    ).length || 0;
+
+    // Calcular taxa de aprovação (processos concluídos vs total)
+    const approvedProcesses = processesResult.data?.filter(process => 
+      process.status === 'Concluído'
+    ).length || 0;
+    const approvalRate = totalProcesses > 0 ? Math.round((approvedProcesses / totalProcesses) * 100) : 0;
+
+    setSummaryStats([
+      { 
+        title: 'Total de Processos', 
+        value: totalProcesses.toString(), 
+        subtitle: `${recentProcesses} nos últimos 30 dias`, 
+        color: 'text-blue-600' 
+      },
+      { 
+        title: 'Valor Total Contratado', 
+        value: `R$ ${(totalValue / 1000000).toFixed(1)}M`, 
+        subtitle: 'Este ano', 
+        color: 'text-green-600' 
+      },
+      { 
+        title: 'Total de Empresas', 
+        value: totalCompanies.toString(), 
+        subtitle: 'Cadastradas', 
+        color: 'text-purple-600' 
+      },
+      { 
+        title: 'Taxa de Aprovação', 
+        value: `${approvalRate}%`, 
+        subtitle: 'Processos concluídos', 
+        color: 'text-orange-600' 
+      },
+    ]);
+  };
+
+  const fetchProcessData = async () => {
+    const { data: processes } = await supabase.from('processes').select('process_type, created_at');
+    
+    if (!processes) {
+      setProcessData([]);
+      return;
+    }
+
+    // Agrupar por mês e tipo
+    const monthlyData = {};
+    const monthNames = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+    
+    processes.forEach(process => {
+      const date = new Date(process.created_at);
+      const month = monthNames[date.getMonth()];
+      
+      if (!monthlyData[month]) {
+        monthlyData[month] = { month, inexigibilidade: 0, termoAditivo: 0, reajuste: 0, outros: 0 };
+      }
+      
+      const type = process.process_type?.toLowerCase() || 'outros';
+      if (type.includes('inexigibilidade')) {
+        monthlyData[month].inexigibilidade++;
+      } else if (type.includes('termo') || type.includes('aditivo')) {
+        monthlyData[month].termoAditivo++;
+      } else if (type.includes('reajuste')) {
+        monthlyData[month].reajuste++;
+      } else {
+        monthlyData[month].outros++;
+      }
+    });
+    
+    setProcessData(Object.values(monthlyData).slice(-6)); // Últimos 6 meses
+  };
+
+  const fetchValueData = async () => {
+    const { data: contracts } = await supabase.from('contracts').select('value, created_at');
+    
+    if (!contracts) {
+      setValueData([]);
+      return;
+    }
+
+    // Agrupar por mês
+    const monthlyValues = {};
+    const monthNames = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+    
+    contracts.forEach(contract => {
+      const date = new Date(contract.created_at);
+      const month = monthNames[date.getMonth()];
+      
+      if (!monthlyValues[month]) {
+        monthlyValues[month] = { month, valor: 0 };
+      }
+      
+      monthlyValues[month].valor += contract.value || 0;
+    });
+    
+    setValueData(Object.values(monthlyValues).slice(-6)); // Últimos 6 meses
+  };
+
+  const fetchRecentActivities = async () => {
+    const [processesResult, contractsResult, documentsResult] = await Promise.all([
+      supabase.from('processes').select('process_number, status, created_at').order('created_at', { ascending: false }).limit(2),
+      supabase.from('contracts').select('contract_number, status, created_at').order('created_at', { ascending: false }).limit(2),
+      supabase.from('documents').select('name, status, created_at').order('created_at', { ascending: false }).limit(2)
+    ]);
+
+    const activities: any[] = [];
+
+    // Adicionar atividades de processos
+    processesResult.data?.forEach(process => {
+      activities.push({
+        action: 'Processo criado',
+        process: process.process_number,
+        user: 'Sistema',
+        time: getTimeAgo(process.created_at),
+        created_at: process.created_at,
+        status: process.status === 'Em Andamento' ? 'novo' : process.status === 'Concluído' ? 'concluido' : 'em-andamento'
+      });
+    });
+
+    // Adicionar atividades de contratos
+    contractsResult.data?.forEach(contract => {
+      activities.push({
+        action: 'Contrato criado',
+        process: contract.contract_number,
+        user: 'Sistema',
+        time: getTimeAgo(contract.created_at),
+        created_at: contract.created_at,
+        status: contract.status === 'Vigente' ? 'concluido' : 'novo'
+      });
+    });
+
+    // Adicionar atividades de documentos
+    documentsResult.data?.forEach(document => {
+      activities.push({
+        action: 'Documento enviado',
+        process: document.name,
+        user: 'Sistema',
+        time: getTimeAgo(document.created_at),
+        created_at: document.created_at,
+        status: document.status === 'Aprovado' ? 'aprovado' : document.status === 'Pendente' ? 'novo' : 'em-andamento'
+      });
+    });
+
+    // Ordenar por data e pegar os 4 mais recentes
+    activities.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    setRecentActivities(activities.slice(0, 4));
+  };
+
+  const getTimeAgo = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
+    
+    if (diffInHours < 1) return 'Agora';
+    if (diffInHours < 24) return `${diffInHours} horas atrás`;
+    const diffInDays = Math.floor(diffInHours / 24);
+    if (diffInDays === 1) return '1 dia atrás';
+    return `${diffInDays} dias atrás`;
+  };
 
   return (
     <div className="space-y-6">
@@ -106,9 +283,9 @@ const ReportsPage = () => {
           </div>
           
           <div className="flex justify-end space-x-2 mt-4">
-            <Button variant="outline">
+            <Button variant="outline" onClick={fetchReportData} disabled={loading}>
               <Calendar className="w-4 h-4 mr-2" />
-              Atualizar
+              {loading ? 'Carregando...' : 'Atualizar'}
             </Button>
             <Button className="bg-blue-600 hover:bg-blue-700">
               <Download className="w-4 h-4 mr-2" />
@@ -120,17 +297,31 @@ const ReportsPage = () => {
 
       {/* Summary Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        {summaryStats.map((stat, index) => (
-          <Card key={index}>
-            <CardContent className="p-6">
-              <div className="text-center">
-                <p className="text-sm text-gray-600 mb-1">{stat.title}</p>
-                <p className={`text-3xl font-bold ${stat.color}`}>{stat.value}</p>
-                <p className="text-xs text-gray-500 mt-1">{stat.subtitle}</p>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+        {loading ? (
+          Array.from({ length: 4 }).map((_, index) => (
+            <Card key={index}>
+              <CardContent className="p-6">
+                <div className="text-center animate-pulse">
+                  <div className="h-4 bg-gray-200 rounded mb-2"></div>
+                  <div className="h-8 bg-gray-200 rounded mb-1"></div>
+                  <div className="h-3 bg-gray-200 rounded"></div>
+                </div>
+              </CardContent>
+            </Card>
+          ))
+        ) : (
+          summaryStats.map((stat, index) => (
+            <Card key={index}>
+              <CardContent className="p-6">
+                <div className="text-center">
+                  <p className="text-sm text-gray-600 mb-1">{stat.title}</p>
+                  <p className={`text-3xl font-bold ${stat.color}`}>{stat.value}</p>
+                  <p className="text-xs text-gray-500 mt-1">{stat.subtitle}</p>
+                </div>
+              </CardContent>
+            </Card>
+          ))
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -181,29 +372,38 @@ const ReportsPage = () => {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {[
-              { action: 'Processo criado', process: 'PROC-2024-015', user: 'Maria Silva', time: '2 horas atrás', status: 'novo' },
-              { action: 'Contrato assinado', process: 'CT-2024-008', user: 'João Santos', time: '4 horas atrás', status: 'concluido' },
-              { action: 'Documento aprovado', process: 'PROC-2024-012', user: 'Ana Costa', time: '1 dia atrás', status: 'aprovado' },
-              { action: 'Prazo vencendo', process: 'PROC-2023-189', user: 'Sistema', time: '2 dias atrás', status: 'alerta' },
-            ].map((activity, index) => (
-              <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <div>
-                  <p className="font-medium">{activity.action}</p>
-                  <p className="text-sm text-gray-600">{activity.process} - {activity.user}</p>
+            {loading ? (
+              Array.from({ length: 4 }).map((_, index) => (
+                <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg animate-pulse">
+                  <div className="flex-1">
+                    <div className="h-4 bg-gray-200 rounded mb-2"></div>
+                    <div className="h-3 bg-gray-200 rounded w-2/3"></div>
+                  </div>
+                  <div className="w-16 h-6 bg-gray-200 rounded"></div>
                 </div>
-                <div className="text-right">
-                  <Badge variant={
-                    activity.status === 'novo' ? 'default' :
-                    activity.status === 'concluido' ? 'secondary' :
-                    activity.status === 'aprovado' ? 'outline' : 'destructive'
-                  }>
-                    {activity.status}
-                  </Badge>
-                  <p className="text-xs text-gray-500 mt-1">{activity.time}</p>
+              ))
+            ) : recentActivities.length > 0 ? (
+              recentActivities.map((activity, index) => (
+                <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div>
+                    <p className="font-medium">{activity.action}</p>
+                    <p className="text-sm text-gray-600">{activity.process} - {activity.user}</p>
+                  </div>
+                  <div className="text-right">
+                    <Badge variant={
+                      activity.status === 'novo' ? 'default' :
+                      activity.status === 'concluido' ? 'secondary' :
+                      activity.status === 'aprovado' ? 'outline' : 'destructive'
+                    }>
+                      {activity.status}
+                    </Badge>
+                    <p className="text-xs text-gray-500 mt-1">{activity.time}</p>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))
+            ) : (
+              <p className="text-center text-gray-500 py-4">Nenhuma atividade recente encontrada</p>
+            )}
           </div>
         </CardContent>
       </Card>

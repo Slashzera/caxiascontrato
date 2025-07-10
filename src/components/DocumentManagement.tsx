@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { FolderOpen, Search, Upload, Eye, Download, File } from 'lucide-react';
+import { FolderOpen, Search, Upload, Eye, Download, File, ExternalLink } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import NewDocumentForm from './NewDocumentForm';
@@ -35,9 +35,10 @@ const DocumentManagement = () => {
         type: doc.type,
         process: doc.processes?.process_number || 'N/A',
         uploadDate: new Date(doc.upload_date).toLocaleDateString('pt-BR'),
-        size: doc.size,
-        uploadedBy: doc.uploaded_by,
-        status: doc.status
+        size: doc.size || 'N/A',
+        uploadedBy: doc.uploaded_by || 'N/A',
+        status: doc.status,
+        fileUrl: doc.file_url
       }));
 
       setDocuments(formattedDocuments);
@@ -79,8 +80,40 @@ const DocumentManagement = () => {
   };
 
   const getFileIcon = (filename) => {
-    const extension = filename.split('.').pop().toLowerCase();
+    const extension = filename.split('.').pop()?.toLowerCase();
+    if (extension === 'pdf') {
+      return <File className="w-5 h-5 text-red-500" />;
+    }
     return <File className="w-5 h-5 text-blue-600" />;
+  };
+
+  const handleViewDocument = (document) => {
+    if (document.fileUrl) {
+      window.open(document.fileUrl, '_blank');
+    } else {
+      toast({
+        title: "Arquivo não encontrado",
+        description: "Este documento não possui arquivo anexado",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDownloadDocument = (document) => {
+    if (document.fileUrl) {
+      const link = window.document.createElement('a');
+      link.href = document.fileUrl;
+      link.download = document.name + '.pdf';
+      window.document.body.appendChild(link);
+      link.click();
+      window.document.body.removeChild(link);
+    } else {
+      toast({
+        title: "Arquivo não encontrado",
+        description: "Este documento não possui arquivo anexado",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -166,12 +199,34 @@ const DocumentManagement = () => {
                   </Badge>
                   
                   <div className="flex space-x-2">
-                    <Button variant="outline" size="sm">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => handleViewDocument(document)}
+                      disabled={!document.fileUrl}
+                      title="Visualizar documento"
+                    >
                       <Eye className="w-4 h-4" />
                     </Button>
-                    <Button variant="outline" size="sm">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => handleDownloadDocument(document)}
+                      disabled={!document.fileUrl}
+                      title="Baixar documento"
+                    >
                       <Download className="w-4 h-4" />
                     </Button>
+                    {document.fileUrl && (
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => window.open(document.fileUrl, '_blank')}
+                        title="Abrir em nova aba"
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                      </Button>
+                    )}
                   </div>
                 </div>
               </div>

@@ -13,6 +13,8 @@ import DeleteConfirmationDialog from './DeleteConfirmationDialog';
 const CompanyManagement = () => {
   const [companies, setCompanies] = useState([]);
   const [deleteDialog, setDeleteDialog] = useState({ isOpen: false, company: null });
+  const [editDialog, setEditDialog] = useState({ isOpen: false, company: null });
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     fetchCompanies();
@@ -100,7 +102,18 @@ const CompanyManagement = () => {
     setDeleteDialog({ isOpen: false, company: null });
   };
 
-  const [searchTerm, setSearchTerm] = useState('');
+  const handleEditCompany = (company) => {
+    setEditDialog({ isOpen: true, company });
+  };
+
+  const closeEditDialog = () => {
+    setEditDialog({ isOpen: false, company: null });
+  };
+
+  const handleViewCompany = (company) => {
+    // Implementar visualização detalhada
+    console.log('Visualizar empresa:', company);
+  };
 
   const filteredCompanies = companies.filter(company =>
     company.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -199,11 +212,19 @@ const CompanyManagement = () => {
                 </div>
                 
                 <div className="flex justify-end space-x-2 pt-2">
-                  <Button variant="outline" size="sm">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => handleViewCompany(company)}
+                  >
                     <Eye className="w-4 h-4 mr-2" />
                     Visualizar
                   </Button>
-                  <Button variant="outline" size="sm">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => handleEditCompany(company)}
+                  >
                     <Edit className="w-4 h-4 mr-2" />
                     Editar
                   </Button>
@@ -241,6 +262,27 @@ const CompanyManagement = () => {
         description="Esta ação não pode ser desfeita. A empresa será permanentemente removida do sistema."
         itemName={deleteDialog.company?.name || ''}
       />
+      
+      {/* Modal de Edição de Empresa */}
+      {editDialog.isOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold">Editar Empresa</h2>
+              <Button variant="ghost" onClick={closeEditDialog}>
+                ×
+              </Button>
+            </div>
+            <NewCompanyForm 
+              onSuccess={() => {
+                closeEditDialog();
+                fetchCompanies();
+              }}
+              editData={editDialog.company}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 };

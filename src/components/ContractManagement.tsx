@@ -16,6 +16,8 @@ const ContractManagement = () => {
   const [selectedContract, setSelectedContract] = useState(null);
   const [showDocuments, setShowDocuments] = useState(false);
   const [deleteDialog, setDeleteDialog] = useState({ isOpen: false, contract: null });
+  const [editDialog, setEditDialog] = useState({ isOpen: false, contract: null });
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     fetchContracts();
@@ -130,7 +132,18 @@ const ContractManagement = () => {
     setDeleteDialog({ isOpen: false, contract: null });
   };
 
-  const [searchTerm, setSearchTerm] = useState('');
+  const handleEditContract = (contract) => {
+    setEditDialog({ isOpen: true, contract });
+  };
+
+  const closeEditDialog = () => {
+    setEditDialog({ isOpen: false, contract: null });
+  };
+
+  const handleViewContract = (contract) => {
+    // Implementar visualização detalhada
+    console.log('Visualizar contrato:', contract);
+  };
 
   const filteredContracts = contracts.filter(contract =>
     contract.company.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -242,11 +255,19 @@ const ContractManagement = () => {
                 </div>
                 
                 <div className="flex justify-end space-x-2 pt-4 border-t">
-                  <Button variant="outline" size="sm">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => handleViewContract(contract)}
+                  >
                     <Eye className="w-4 h-4 mr-2" />
                     Visualizar
                   </Button>
-                  <Button variant="outline" size="sm">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => handleEditContract(contract)}
+                  >
                     <Edit className="w-4 h-4 mr-2" />
                     Editar
                   </Button>
@@ -292,6 +313,27 @@ const ContractManagement = () => {
         description="Esta ação não pode ser desfeita. O contrato será permanentemente removido do sistema."
         itemName={deleteDialog.contract?.id || ''}
       />
+      
+      {/* Modal de Edição de Contrato */}
+      {editDialog.isOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold">Editar Contrato</h2>
+              <Button variant="ghost" onClick={closeEditDialog}>
+                ×
+              </Button>
+            </div>
+            <NewContractForm 
+              onSuccess={() => {
+                closeEditDialog();
+                fetchContracts();
+              }}
+              editData={editDialog.contract}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 };

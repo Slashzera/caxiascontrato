@@ -97,12 +97,11 @@ const AuthPage = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+    <div className="min-h-screen flex items-center justify-center p-4" style={{ background: 'linear-gradient(to bottom, #0161DA, #ffffff)' }}>
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <Building2 className="w-12 h-12 text-blue-600 mx-auto mb-4" />
-          <h1 className="text-3xl font-bold text-gray-900">Sistema de Gestão</h1>
-          <p className="text-gray-600 mt-2">Entre na sua conta ou crie uma nova</p>
+          <h1 className="text-3xl font-bold text-white">Sistema de Gestão</h1>
+          <p className="text-white mt-2">Entre na sua conta ou crie uma nova</p>
         </div>
 
         <Tabs defaultValue="login" className="w-full">

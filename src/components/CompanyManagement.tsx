@@ -4,13 +4,15 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Users, Search, Eye, Edit, Phone, Mail, Building } from 'lucide-react';
+import { Users, Search, Eye, Edit, Phone, Mail, Building, Trash2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import NewCompanyForm from './NewCompanyForm';
+import DeleteConfirmationDialog from './DeleteConfirmationDialog';
 
 const CompanyManagement = () => {
   const [companies, setCompanies] = useState([]);
+  const [deleteDialog, setDeleteDialog] = useState({ isOpen: false, company: null });
 
   useEffect(() => {
     fetchCompanies();
@@ -33,6 +35,69 @@ const CompanyManagement = () => {
         variant: "destructive",
       });
     }
+  };
+
+  const handleDeleteCompany = async () => {
+    if (!deleteDialog.company) return;
+
+    try {
+      // Get the full company data before moving to trash
+      const { data: companyData, error: fetchError } = await supabase
+        .from('companies')
+        .select('*')
+        .eq('id', deleteDialog.company.id)
+        .single();
+
+      if (fetchError) throw fetchError;
+
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Usuário não autenticado');
+
+      // Move to trash
+      const { error: trashError } = await supabase
+        .from('trash')
+        .insert({
+          item_type: 'company',
+          item_id: deleteDialog.company.id.toString(),
+          item_data: companyData,
+          original_table: 'companies',
+          deleted_by: user.id
+        });
+
+      if (trashError) throw trashError;
+
+      // Delete from original table
+      const { error: deleteError } = await supabase
+        .from('companies')
+        .delete()
+        .eq('id', deleteDialog.company.id);
+
+      if (deleteError) throw deleteError;
+
+      await fetchCompanies();
+      closeDeleteDialog();
+      
+      toast({
+        title: "Empresa movida para a lixeira!",
+        description: `Empresa ${deleteDialog.company.name} foi movida para a lixeira`,
+      });
+    } catch (error) {
+      console.error('Error moving company to trash:', error);
+      toast({
+        title: "Erro ao mover empresa",
+        description: "Não foi possível mover a empresa para a lixeira",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const openDeleteDialog = (company) => {
+    setDeleteDialog({ isOpen: true, company });
+  };
+
+  const closeDeleteDialog = () => {
+    setDeleteDialog({ isOpen: false, company: null });
   };
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -142,6 +207,15 @@ const CompanyManagement = () => {
                     <Edit className="w-4 h-4 mr-2" />
                     Editar
                   </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => openDeleteDialog(company)}
+                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Apagar
+                  </Button>
                 </div>
               </div>
             </CardContent>
@@ -158,6 +232,15 @@ const CompanyManagement = () => {
           </CardContent>
         </Card>
       )}
+      
+      <DeleteConfirmationDialog
+        isOpen={deleteDialog.isOpen}
+        onClose={closeDeleteDialog}
+        onConfirm={handleDeleteCompany}
+        title="Excluir Empresa"
+        description="Esta ação não pode ser desfeita. A empresa será permanentemente removida do sistema."
+        itemName={deleteDialog.company?.name || ''}
+      />
     </div>
   );
 };

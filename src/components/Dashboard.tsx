@@ -26,6 +26,7 @@ const Dashboard = () => {
   const [recentProcesses, setRecentProcesses] = useState([]);
   const [processData, setProcessData] = useState([]);
   const [statusData, setStatusData] = useState([]);
+  const [contractAlerts, setContractAlerts] = useState([]);
 
   useEffect(() => {
     fetchDashboardData();
@@ -36,9 +37,26 @@ const Dashboard = () => {
       // Fetch stats
       const [processesResult, contractsResult, companiesResult] = await Promise.all([
         supabase.from('processes').select('*'),
-        supabase.from('contracts').select('*'),
+        supabase.from('contracts').select('*, companies(name)'),
         supabase.from('companies').select('*')
       ]);
+
+      // Check for contracts expiring in 120 days
+      const contracts = contractsResult.data || [];
+      const today = new Date();
+      const alertThreshold = new Date(today.getTime() + (120 * 24 * 60 * 60 * 1000)); // 120 days from now
+      
+      const expiringContracts = contracts.filter(contract => {
+        const endDate = new Date(contract.end_date);
+        return endDate <= alertThreshold && endDate >= today && contract.status === 'Vigente';
+      }).map(contract => ({
+        contractNumber: contract.contract_number,
+        companyName: contract.companies?.name || 'N/A',
+        endDate: new Date(contract.end_date).toLocaleDateString('pt-BR'),
+        daysRemaining: Math.ceil((new Date(contract.end_date) - today) / (1000 * 60 * 60 * 24))
+      }));
+      
+      setContractAlerts(expiringContracts);
 
       // Calculate status data
       const processes = processesResult.data || [];
@@ -64,7 +82,7 @@ const Dashboard = () => {
       const activeProcesses = processes.filter(p => p.status === 'Em Andamento').length;
       const activeContracts = (contractsResult.data || []).filter(c => c.status === 'Vigente').length;
       const totalCompanies = (companiesResult.data || []).length;
-      const pendingAlerts = processes.filter(p => p.status === 'Pendente').length;
+      const pendingAlerts = processes.filter(p => p.status === 'Pendente').length + expiringContracts.length;
 
       setStats([
         { title: 'Processos Ativos', value: activeProcesses, icon: FileText, color: 'text-blue-600', bg: 'bg-blue-50' },
@@ -123,6 +141,32 @@ const Dashboard = () => {
         <h1 className="text-2xl font-bold text-gray-900 mb-2">Dashboard</h1>
         <p className="text-gray-600">Visão geral dos processos e contratos administrativos</p>
       </div>
+
+      {/* Contract Alerts */}
+      {contractAlerts.length > 0 && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <div className="flex items-center mb-2">
+            <AlertTriangle className="w-5 h-5 text-red-600 mr-2" />
+            <h3 className="text-lg font-semibold text-red-800">
+              Contratos Vencendo: {contractAlerts.length} contrato(s) vencendo(s) - {contractAlerts.map(alert => alert.endDate).join(', ')}
+            </h3>
+          </div>
+          <div className="space-y-2">
+            {contractAlerts.map((alert, index) => (
+              <div key={index} className="flex items-center justify-between bg-white p-3 rounded border border-red-100">
+                <div>
+                  <p className="font-medium text-gray-900">{alert.contractNumber}</p>
+                  <p className="text-sm text-gray-600">{alert.companyName}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm font-medium text-red-600">Vence em {alert.daysRemaining} dias</p>
+                  <p className="text-xs text-gray-500">{alert.endDate}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">

@@ -5,6 +5,7 @@ import ContractManagement from '@/components/ContractManagement';
 import CompanyManagement from '@/components/CompanyManagement';
 import DocumentManagement from '@/components/DocumentManagement';
 import ReportsPage from '@/components/ReportsPage';
+import TrashManagement from '@/components/TrashManagement';
 import Sidebar from '@/components/Sidebar';
 import Header from '@/components/Header';
 
@@ -25,6 +26,8 @@ const Index = () => {
         return <DocumentManagement />;
       case 'reports':
         return <ReportsPage />;
+      case 'trash':
+        return <TrashManagement />;
       default:
         return <Dashboard />;
     }

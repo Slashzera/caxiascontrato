@@ -4,13 +4,18 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Building2, Search, Eye, Edit, Calendar, DollarSign } from 'lucide-react';
+import { Building2, Search, Eye, Edit, Calendar, DollarSign, Trash2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import NewContractForm from './NewContractForm';
+import ContractDocuments from './ContractDocuments';
+import DeleteConfirmationDialog from './DeleteConfirmationDialog';
 
 const ContractManagement = () => {
   const [contracts, setContracts] = useState([]);
+  const [selectedContract, setSelectedContract] = useState(null);
+  const [showDocuments, setShowDocuments] = useState(false);
+  const [deleteDialog, setDeleteDialog] = useState({ isOpen: false, contract: null });
 
   useEffect(() => {
     fetchContracts();
@@ -30,6 +35,7 @@ const ContractManagement = () => {
 
       const formattedContracts = (data || []).map(contract => ({
         id: contract.contract_number,
+        contractId: contract.id,
         company: contract.companies?.name || 'N/A',
         object: contract.object,
         startDate: new Date(contract.start_date).toLocaleDateString('pt-BR'),
@@ -49,6 +55,79 @@ const ContractManagement = () => {
         variant: "destructive",
       });
     }
+  };
+
+  const handleProcessesClick = (contract) => {
+    setSelectedContract(contract);
+    setShowDocuments(true);
+  };
+
+  const handleBackToContracts = () => {
+    setShowDocuments(false);
+    setSelectedContract(null);
+  };
+
+  const handleDeleteContract = async () => {
+    if (!deleteDialog.contract) return;
+
+    try {
+      // Get the full contract data before moving to trash
+      const { data: contractData, error: fetchError } = await supabase
+        .from('contracts')
+        .select('*')
+        .eq('id', deleteDialog.contract.contractId)
+        .single();
+
+      if (fetchError) throw fetchError;
+
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Usuário não autenticado');
+
+      // Move to trash
+      const { error: trashError } = await supabase
+        .from('trash')
+        .insert({
+          item_type: 'contract',
+          item_id: deleteDialog.contract.contractId,
+          item_data: contractData,
+          original_table: 'contracts',
+          deleted_by: user.id
+        });
+
+      if (trashError) throw trashError;
+
+      // Delete from original table
+      const { error: deleteError } = await supabase
+        .from('contracts')
+        .delete()
+        .eq('id', deleteDialog.contract.contractId);
+
+      if (deleteError) throw deleteError;
+
+      await fetchContracts();
+      closeDeleteDialog();
+      
+      toast({
+        title: "Contrato movido para a lixeira!",
+        description: `Contrato ${deleteDialog.contract.id} foi movido para a lixeira`,
+      });
+    } catch (error) {
+      console.error('Error moving contract to trash:', error);
+      toast({
+        title: "Erro ao mover contrato",
+        description: "Não foi possível mover o contrato para a lixeira",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const openDeleteDialog = (contract) => {
+    setDeleteDialog({ isOpen: true, contract });
+  };
+
+  const closeDeleteDialog = () => {
+    setDeleteDialog({ isOpen: false, contract: null });
   };
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -71,6 +150,16 @@ const ContractManagement = () => {
         return 'outline';
     }
   };
+
+  if (showDocuments && selectedContract) {
+    return (
+      <ContractDocuments
+        contractId={selectedContract.contractId}
+        contractNumber={selectedContract.id}
+        onBack={handleBackToContracts}
+      />
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -161,9 +250,22 @@ const ContractManagement = () => {
                     <Edit className="w-4 h-4 mr-2" />
                     Editar
                   </Button>
-                  <Button variant="outline" size="sm">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => handleProcessesClick(contract)}
+                  >
                     <Building2 className="w-4 h-4 mr-2" />
                     Processos
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => openDeleteDialog(contract)}
+                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Apagar
                   </Button>
                 </div>
               </div>
@@ -181,6 +283,15 @@ const ContractManagement = () => {
           </CardContent>
         </Card>
       )}
+      
+      <DeleteConfirmationDialog
+        isOpen={deleteDialog.isOpen}
+        onClose={closeDeleteDialog}
+        onConfirm={handleDeleteContract}
+        title="Excluir Contrato"
+        description="Esta ação não pode ser desfeita. O contrato será permanentemente removido do sistema."
+        itemName={deleteDialog.contract?.id || ''}
+      />
     </div>
   );
 };

@@ -7,7 +7,8 @@ import {
   Building2, 
   Users, 
   FolderOpen, 
-  BarChart3 
+  BarChart3,
+  Trash2
 } from 'lucide-react';
 
 const Sidebar = ({ currentPage, onNavigate }) => {
@@ -18,6 +19,7 @@ const Sidebar = ({ currentPage, onNavigate }) => {
     { id: 'companies', label: 'Empresas', icon: Users },
     { id: 'documents', label: 'Documentos', icon: FolderOpen },
     { id: 'reports', label: 'Relatórios', icon: BarChart3 },
+    { id: 'trash', label: 'Lixeira', icon: Trash2 },
   ];
 
   return (

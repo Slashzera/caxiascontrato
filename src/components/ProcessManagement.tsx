@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,12 +9,14 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Plus, Search, Eye, Edit, FileText, Calendar, Tag, CheckSquare, Trash2, Calculator } from 'lucide-react';
+import { Plus, Search, Eye, Edit, FileText, Calendar, Tag, CheckSquare, Trash2, Calculator, Paperclip } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import ProcessMeasurements from './ProcessMeasurements';
+import DeleteConfirmationDialog from './DeleteConfirmationDialog';
 
 const ProcessManagement = () => {
+  const navigate = useNavigate();
   const availableTags = [
     { name: 'RESOLVIDO', color: 'bg-green-500' },
     { name: 'PRESTAÇÃO DE SERVIÇO', color: 'bg-emerald-600' },
@@ -46,6 +49,7 @@ const ProcessManagement = () => {
   ];
 
   const [processes, setProcesses] = useState([]);
+  const [deleteDialog, setDeleteDialog] = useState({ isOpen: false, process: null });
   const [companies, setCompanies] = useState([]);
 
   useEffect(() => {
@@ -107,6 +111,7 @@ const ProcessManagement = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+
   const [showMeasurements, setShowMeasurements] = useState(false);
   const [selectedProcess, setSelectedProcess] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -213,6 +218,11 @@ const ProcessManagement = () => {
     setIsEditDialogOpen(true);
   };
 
+  const handleOpenUpload = (process) => {
+    const encodedProcessNumber = encodeURIComponent(process.number);
+    navigate(`/processo/${encodedProcessNumber}/upload`);
+  };
+
   const handleSaveProcess = () => {
     setProcesses(processes.map(p => 
       p.id === selectedProcess.id ? selectedProcess : p
@@ -223,6 +233,71 @@ const ProcessManagement = () => {
       description: "As alterações foram salvas com sucesso",
     });
   };
+
+  const handleDeleteProcess = async () => {
+    if (!deleteDialog.process) return;
+
+    try {
+      // Get the full process data before moving to trash
+      const { data: processData, error: fetchError } = await supabase
+        .from('processes')
+        .select('*')
+        .eq('process_number', deleteDialog.process.number)
+        .single();
+
+      if (fetchError) throw fetchError;
+
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Usuário não autenticado');
+
+      // Move to trash
+      const { error: trashError } = await supabase
+        .from('trash')
+        .insert({
+          item_type: 'process',
+          item_id: deleteDialog.process.number,
+          item_data: processData,
+          original_table: 'processes',
+          deleted_by: user.id
+        });
+
+      if (trashError) throw trashError;
+
+      // Delete from original table
+      const { error: deleteError } = await supabase
+        .from('processes')
+        .delete()
+        .eq('process_number', deleteDialog.process.number);
+
+      if (deleteError) throw deleteError;
+
+      await fetchProcesses();
+      closeDeleteDialog();
+      
+      toast({
+        title: "Processo movido para a lixeira!",
+        description: `Processo ${deleteDialog.process.number} foi movido para a lixeira`,
+      });
+    } catch (error) {
+      console.error('Error moving process to trash:', error);
+      toast({
+        title: "Erro ao mover processo",
+        description: "Não foi possível mover o processo para a lixeira",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const openDeleteDialog = (process) => {
+    setDeleteDialog({ isOpen: true, process });
+  };
+
+  const closeDeleteDialog = () => {
+    setDeleteDialog({ isOpen: false, process: null });
+  };
+
+
 
   const handleToggleTag = (tagName, isEdit = false) => {
     if (isEdit && selectedProcess) {
@@ -590,8 +665,19 @@ const ProcessManagement = () => {
                   <Button variant="outline" size="sm" onClick={() => handleOpenMeasurements(process)}>
                     <Calculator className="w-4 h-4" />
                   </Button>
-                  <Button variant="outline" size="sm">
-                    <FileText className="w-4 h-4" />
+                  <Button variant="ghost" size="icon">
+                    <FileText className="w-5 h-5" />
+                  </Button>
+                  <Button variant="ghost" size="icon" onClick={() => handleOpenUpload(process)}>
+                    <Paperclip className="w-5 h-5" />
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => openDeleteDialog(process)}
+                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                  >
+                    <Trash2 className="w-4 h-4" />
                   </Button>
                 </div>
               </div>
@@ -670,6 +756,8 @@ const ProcessManagement = () => {
           )}
         </DialogContent>
       </Dialog>
+
+
 
       {/* Modal de Edição */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
@@ -827,6 +915,15 @@ const ProcessManagement = () => {
           </CardContent>
         </Card>
       )}
+      
+      <DeleteConfirmationDialog
+        isOpen={deleteDialog.isOpen}
+        onClose={closeDeleteDialog}
+        onConfirm={handleDeleteProcess}
+        title="Excluir Processo"
+        description="Esta ação não pode ser desfeita. O processo será permanentemente removido do sistema."
+        itemName={deleteDialog.process?.number || ''}
+      />
     </div>
   );
 };

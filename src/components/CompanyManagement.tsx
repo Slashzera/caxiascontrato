@@ -24,11 +24,27 @@ const CompanyManagement = () => {
     try {
       const { data, error } = await supabase
         .from('companies')
-        .select('*')
-        .order('name');
+        .select(`
+          *,
+          contracts!inner(id, status)
+        `)
+        .order('name', { ascending: true }); // Garantir ordem alfabética ascendente
 
       if (error) throw error;
-      setCompanies(data || []);
+      
+      // Calcular contratos ativos reais para cada empresa
+      const companiesWithActiveContracts = (data || []).map(company => {
+        const activeContracts = company.contracts?.filter(contract => 
+          contract.status === 'Vigente' || contract.status === 'active'
+        ).length || 0;
+        
+        return {
+          ...company,
+          active_contracts: activeContracts
+        };
+      });
+      
+      setCompanies(companiesWithActiveContracts);
     } catch (error) {
       console.error('Error fetching companies:', error);
       toast({

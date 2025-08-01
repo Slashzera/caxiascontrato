@@ -16,7 +16,7 @@ interface NewContractFormProps {
 }
 
 const NewContractForm = ({ onContractCreated, onSuccess, editData }: NewContractFormProps) => {
-  const [isOpen, setIsOpen] = useState(!!editData); // Abrir automaticamente se editData existir
+  const [isOpen, setIsOpen] = useState(false); // Sempre iniciar como false
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [companies, setCompanies] = useState([]);
   const [formData, setFormData] = useState({
@@ -37,7 +37,7 @@ const NewContractForm = ({ onContractCreated, onSuccess, editData }: NewContract
   useEffect(() => {
     if (editData) {
       console.log('EditData recebido:', editData);
-      setIsOpen(true);
+      setIsOpen(true); // Abrir modal para edição
       
       // Formatar o valor para exibição
       let formattedValue = '';
@@ -89,8 +89,9 @@ const NewContractForm = ({ onContractCreated, onSuccess, editData }: NewContract
   const handleClose = () => {
     setIsOpen(false);
     if (onSuccess) {
-      onSuccess(); // Chama a função de callback para fechar o editDialog
+      onSuccess();
     }
+    // Reset form apenas se não estiver editando
     if (!editData) {
       setFormData({
         contract_number: '',
@@ -332,10 +333,10 @@ const NewContractForm = ({ onContractCreated, onSuccess, editData }: NewContract
 
   // Renderização normal com Dialog para criação
   return (
-    <Dialog open={isOpen} onOpenChange={handleClose}>
+    <Dialog open={isOpen} onOpenChange={setIsOpen}> {/* Usar setIsOpen diretamente */}
       {!editData && (
         <DialogTrigger asChild>
-          <Button onClick={() => setIsOpen(true)} className="bg-blue-600 hover:bg-blue-700">
+          <Button className="bg-blue-600 hover:bg-blue-700">
             <Building2 className="w-4 h-4 mr-2" />
             Novo Contrato
           </Button>

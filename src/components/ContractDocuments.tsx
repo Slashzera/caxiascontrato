@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Upload, Download, Eye, Trash2, FileText, ArrowLeft } from 'lucide-react';
+import { Upload, Download, Eye, Trash2, FileText, ArrowLeft, Plus } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import DeleteConfirmationDialog from './DeleteConfirmationDialog';
+import ProcessManagement from './ProcessManagement';
 
 interface ContractDocumentsProps {
   contractId: string;
@@ -25,6 +27,7 @@ interface Document {
 }
 
 const ContractDocuments: React.FC<ContractDocumentsProps> = ({ contractId, contractNumber, onBack }) => {
+  const navigate = useNavigate();
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -32,6 +35,7 @@ const ContractDocuments: React.FC<ContractDocumentsProps> = ({ contractId, contr
   const [fileName, setFileName] = useState('');
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
   const [deleteDialog, setDeleteDialog] = useState({ isOpen: false, document: null as Document | null });
+  const [showProcesses, setShowProcesses] = useState(false);
 
   useEffect(() => {
     if (contractId) {
@@ -276,6 +280,27 @@ const ContractDocuments: React.FC<ContractDocumentsProps> = ({ contractId, contr
     );
   }
 
+  // Modificar a condição para renderizar ProcessManagement
+  if (showProcesses) {
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-4">
+          <Button variant="outline" onClick={() => setShowProcesses(false)}>
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Voltar para Documentos
+          </Button>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Processos do Contrato</h1>
+            <p className="text-gray-600">{contractNumber}</p>
+          </div>
+        </div>
+      </div>
+      <ProcessManagement />
+    </div>
+  );
+}
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -290,49 +315,56 @@ const ContractDocuments: React.FC<ContractDocumentsProps> = ({ contractId, contr
           </div>
         </div>
         
-        <Dialog open={isUploadDialogOpen} onOpenChange={setIsUploadDialogOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Upload className="w-4 h-4 mr-2" />
-              Novo Documento
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Upload de Documento</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="file">Arquivo PDF</Label>
-                <Input
-                  id="file"
-                  type="file"
-                  accept=".pdf"
-                  onChange={handleFileSelect}
-                  className="mt-1"
-                />
+        <div className="flex space-x-2">
+          <Button onClick={() => navigate('/processos')} variant="outline">
+            <Plus className="w-4 h-4 mr-2" />
+            Novo Processo
+          </Button>
+          
+          <Dialog open={isUploadDialogOpen} onOpenChange={setIsUploadDialogOpen}>
+            <DialogTrigger asChild>
+              <Button>
+                <Upload className="w-4 h-4 mr-2" />
+                Novo Documento
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Upload de Documento</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="file">Arquivo PDF</Label>
+                  <Input
+                    id="file"
+                    type="file"
+                    accept=".pdf"
+                    onChange={handleFileSelect}
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="fileName">Nome do Documento</Label>
+                  <Input
+                    id="fileName"
+                    value={fileName}
+                    onChange={(e) => setFileName(e.target.value)}
+                    placeholder="Digite o nome do documento"
+                    className="mt-1"
+                  />
+                </div>
+                <div className="flex justify-end space-x-2">
+                  <Button variant="outline" onClick={() => setIsUploadDialogOpen(false)}>
+                    Cancelar
+                  </Button>
+                  <Button onClick={handleUpload} disabled={uploading}>
+                    {uploading ? 'Enviando...' : 'Enviar'}
+                  </Button>
+                </div>
               </div>
-              <div>
-                <Label htmlFor="fileName">Nome do Documento</Label>
-                <Input
-                  id="fileName"
-                  value={fileName}
-                  onChange={(e) => setFileName(e.target.value)}
-                  placeholder="Digite o nome do documento"
-                  className="mt-1"
-                />
-              </div>
-              <div className="flex justify-end space-x-2">
-                <Button variant="outline" onClick={() => setIsUploadDialogOpen(false)}>
-                  Cancelar
-                </Button>
-                <Button onClick={handleUpload} disabled={uploading}>
-                  {uploading ? 'Enviando...' : 'Enviar'}
-                </Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
       {/* Documents Grid */}

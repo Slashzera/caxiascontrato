@@ -31,7 +31,7 @@ const ContractManagement = () => {
           *,
           companies (name, cnpj)
         `)
-        .order('created_at', { ascending: false });
+        .order('companies(name)', { ascending: true }); // Mudança aqui: ordenar por nome da empresa em ordem alfabética
 
       if (error) throw error;
 

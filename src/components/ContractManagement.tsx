@@ -38,6 +38,7 @@ const ContractManagement = () => {
       const formattedContracts = (data || []).map(contract => ({
         id: contract.contract_number,
         contractId: contract.id,
+        company_id: contract.company_id, // IMPORTANTE: Esta linha deve estar presente
         company: contract.companies?.name || 'N/A',
         object: contract.object,
         startDate: new Date(contract.start_date).toLocaleDateString('pt-BR'),
@@ -324,12 +325,12 @@ const ContractManagement = () => {
                 ×
               </Button>
             </div>
-            <NewContractForm 
+            <NewContractForm
+              editData={editDialog.contract}
               onSuccess={() => {
                 closeEditDialog();
                 fetchContracts();
               }}
-              editData={editDialog.contract}
             />
           </div>
         </div>

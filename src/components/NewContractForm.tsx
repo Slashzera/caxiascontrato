@@ -16,7 +16,7 @@ interface NewContractFormProps {
 }
 
 const NewContractForm = ({ onContractCreated, onSuccess, editData }: NewContractFormProps) => {
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(!!editData); // Abrir automaticamente se editData existir
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [companies, setCompanies] = useState([]);
   const [formData, setFormData] = useState({
@@ -33,10 +33,13 @@ const NewContractForm = ({ onContractCreated, onSuccess, editData }: NewContract
     fetchCompanies();
   }, []);
 
-  // Preencher formulário quando editData for fornecido
+  // Abrir modal e preencher dados quando editData for fornecido
   useEffect(() => {
     if (editData) {
-      // Formatar o valor para exibição - remover R$ e converter
+      console.log('EditData recebido:', editData);
+      setIsOpen(true);
+      
+      // Formatar o valor para exibição
       let formattedValue = '';
       if (editData.value) {
         const cleanValue = editData.value.replace(/[R$\s]/g, '').replace(/\./g, '').replace(',', '.');
@@ -49,24 +52,57 @@ const NewContractForm = ({ onContractCreated, onSuccess, editData }: NewContract
         }
       }
 
-      // Converter datas do formato brasileiro (dd/mm/aaaa) para formato ISO (aaaa-mm-dd)
+      // Converter datas do formato brasileiro para ISO
       const convertDateToISO = (dateStr: string) => {
         if (!dateStr) return '';
         const [day, month, year] = dateStr.split('/');
         return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
       };
 
-      setFormData({
+      const newFormData = {
         contract_number: editData.id || '',
-        company_id: editData.company_id || editData.companyId || '',
+        company_id: editData.company_id || '',
         object: editData.object || '',
         start_date: convertDateToISO(editData.startDate || ''),
         end_date: convertDateToISO(editData.endDate || ''),
         value: formattedValue,
         fiscal_responsible: editData.fiscalResponsible || ''
+      };
+      
+      console.log('Preenchendo formulário com:', newFormData);
+      setFormData(newFormData);
+    } else {
+      // Reset form when no editData
+      setFormData({
+        contract_number: '',
+        company_id: '',
+        object: '',
+        start_date: '',
+        end_date: '',
+        value: '',
+        fiscal_responsible: ''
       });
     }
   }, [editData]);
+
+  // Função para fechar o modal
+  const handleClose = () => {
+    setIsOpen(false);
+    if (onSuccess) {
+      onSuccess(); // Chama a função de callback para fechar o editDialog
+    }
+    if (!editData) {
+      setFormData({
+        contract_number: '',
+        company_id: '',
+        object: '',
+        start_date: '',
+        end_date: '',
+        value: '',
+        fiscal_responsible: ''
+      });
+    }
+  };
 
   const fetchCompanies = async () => {
     try {
@@ -120,6 +156,9 @@ const NewContractForm = ({ onContractCreated, onSuccess, editData }: NewContract
         value: parseCurrencyToNumber(formData.value)
       };
 
+      console.log('Contract data being sent:', contractData);
+      console.log('Edit data:', editData);
+
       if (editData) {
         // Modo edição - atualizar contrato existente
         const { error } = await supabase
@@ -127,7 +166,10 @@ const NewContractForm = ({ onContractCreated, onSuccess, editData }: NewContract
           .update(contractData)
           .eq('id', editData.contractId);
 
-        if (error) throw error;
+        if (error) {
+          console.error('Supabase error details:', error);
+          throw error;
+        }
 
         toast({
           title: "Contrato atualizado com sucesso",
@@ -200,6 +242,7 @@ const NewContractForm = ({ onContractCreated, onSuccess, editData }: NewContract
             <Select 
               value={formData.company_id} 
               onValueChange={(value) => setFormData({ ...formData, company_id: value })}
+              key={`company-select-${formData.company_id}`} // Força re-render
             >
               <SelectTrigger>
                 <SelectValue placeholder="Selecione uma empresa" />
@@ -289,17 +332,21 @@ const NewContractForm = ({ onContractCreated, onSuccess, editData }: NewContract
 
   // Renderização normal com Dialog para criação
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogTrigger asChild>
-        <Button className="bg-blue-600 hover:bg-blue-700">
-          <Building2 className="w-4 h-4 mr-2" />
-          Novo Contrato
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-[600px]">
+    <Dialog open={isOpen} onOpenChange={handleClose}>
+      {!editData && (
+        <DialogTrigger asChild>
+          <Button onClick={() => setIsOpen(true)} className="bg-blue-600 hover:bg-blue-700">
+            <Building2 className="w-4 h-4 mr-2" />
+            Novo Contrato
+          </Button>
+        </DialogTrigger>
+      )}
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Novo Contrato</DialogTitle>
+          <DialogTitle>{editData ? 'Editar Contrato' : 'Novo Contrato'}</DialogTitle>
         </DialogHeader>
+        
+        {/* Formulário aqui */}
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -317,6 +364,7 @@ const NewContractForm = ({ onContractCreated, onSuccess, editData }: NewContract
               <Select 
                 value={formData.company_id} 
                 onValueChange={(value) => setFormData({ ...formData, company_id: value })}
+                key={editData ? `edit-${editData.company_id || editData.companyId}` : 'new'}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione uma empresa" />

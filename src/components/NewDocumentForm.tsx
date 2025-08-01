@@ -16,7 +16,7 @@ const NewDocumentForm = ({ onDocumentCreated }: NewDocumentFormProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [processes, setProcesses] = useState([]);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]); // Mudança: array de arquivos
   const [uploadProgress, setUploadProgress] = useState(0);
   const [formData, setFormData] = useState({
     name: '',
@@ -46,13 +46,15 @@ const NewDocumentForm = ({ onDocumentCreated }: NewDocumentFormProps) => {
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
+    const files = Array.from(e.target.files || []); // Mudança: pegar todos os arquivos
+    const validFiles: File[] = [];
+    
+    files.forEach(file => {
       // Verificar se é PDF
       if (file.type !== 'application/pdf') {
         toast({
           title: "Tipo de arquivo inválido",
-          description: "Apenas arquivos PDF são aceitos",
+          description: `${file.name}: Apenas arquivos PDF são aceitos`,
           variant: "destructive",
         });
         return;
@@ -62,16 +64,18 @@ const NewDocumentForm = ({ onDocumentCreated }: NewDocumentFormProps) => {
       if (file.size > 10 * 1024 * 1024) {
         toast({
           title: "Arquivo muito grande",
-          description: "O arquivo deve ter no máximo 10MB",
+          description: `${file.name}: O arquivo deve ter no máximo 10MB`,
           variant: "destructive",
         });
         return;
       }
       
-      setSelectedFile(file);
-      if (!formData.name) {
-        setFormData(prev => ({ ...prev, name: file.name.replace('.pdf', '') }));
-      }
+      validFiles.push(file);
+    });
+    
+    setSelectedFiles(validFiles);
+    if (validFiles.length > 0 && !formData.name) {
+      setFormData(prev => ({ ...prev, name: validFiles[0].name.replace('.pdf', '') }));
     }
   };
 
@@ -104,10 +108,10 @@ const NewDocumentForm = ({ onDocumentCreated }: NewDocumentFormProps) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!selectedFile) {
+    if (selectedFiles.length === 0) {
       toast({
         title: "Arquivo obrigatório",
-        description: "Selecione um arquivo PDF para fazer upload",
+        description: "Selecione pelo menos um arquivo PDF para fazer upload",
         variant: "destructive",
       });
       return;
@@ -117,26 +121,48 @@ const NewDocumentForm = ({ onDocumentCreated }: NewDocumentFormProps) => {
     setUploadProgress(0);
 
     try {
-      // Upload do arquivo
-      const fileUrl = await uploadFile(selectedFile);
+      let successCount = 0;
       
-      // Criar registro no banco
-      const documentData = {
-        ...formData,
-        file_url: fileUrl,
-        size: formatFileSize(selectedFile.size)
-      };
+      // Upload de todos os arquivos
+      for (let i = 0; i < selectedFiles.length; i++) {
+        const file = selectedFiles[i];
+        
+        try {
+          // Upload do arquivo
+          const fileUrl = await uploadFile(file);
+          
+          // Criar registro no banco
+          const documentData = {
+            ...formData,
+            name: selectedFiles.length > 1 ? `${formData.name} - ${file.name.replace('.pdf', '')}` : formData.name,
+            file_url: fileUrl,
+            size: formatFileSize(file.size)
+          };
 
-      const { error } = await supabase
-        .from('documents')
-        .insert([documentData]);
+          const { error } = await supabase
+            .from('documents')
+            .insert([documentData]);
 
-      if (error) throw error;
+          if (error) throw error;
+          
+          successCount++;
+          setUploadProgress(((i + 1) / selectedFiles.length) * 100);
+        } catch (fileError) {
+          console.error(`Error uploading ${file.name}:`, fileError);
+          toast({
+            title: "Erro no upload",
+            description: `Falha ao enviar ${file.name}`,
+            variant: "destructive",
+          });
+        }
+      }
 
-      toast({
-        title: "Documento enviado com sucesso",
-        description: "O arquivo PDF foi carregado e o documento foi criado",
-      });
+      if (successCount > 0) {
+        toast({
+          title: "Upload concluído",
+          description: `${successCount} de ${selectedFiles.length} arquivo(s) enviado(s) com sucesso`,
+        });
+      }
 
       // Reset form
       setFormData({
@@ -145,15 +171,15 @@ const NewDocumentForm = ({ onDocumentCreated }: NewDocumentFormProps) => {
         process_id: '',
         uploaded_by: ''
       });
-      setSelectedFile(null);
+      setSelectedFiles([]);
       setUploadProgress(0);
       setIsOpen(false);
       onDocumentCreated();
     } catch (error) {
-      console.error('Error creating document:', error);
+      console.error('Error creating documents:', error);
       toast({
-        title: "Erro ao enviar documento",
-        description: "Não foi possível fazer upload do arquivo",
+        title: "Erro ao enviar documentos",
+        description: "Não foi possível fazer upload dos arquivos",
         variant: "destructive",
       });
     } finally {
@@ -236,19 +262,19 @@ const NewDocumentForm = ({ onDocumentCreated }: NewDocumentFormProps) => {
 
           {/* Upload de Arquivo */}
           <div>
-            <Label htmlFor="file">Arquivo PDF*</Label>
+            <Label htmlFor="file">Arquivos PDF*</Label>
             <div className="mt-2">
-              {!selectedFile ? (
+              {selectedFiles.length === 0 ? (
                 <div className="border-2 border-dashed border-gray-300 rounded-lg p-6">
                   <div className="text-center">
                     <Upload className="mx-auto h-12 w-12 text-gray-400" />
                     <div className="mt-4">
                       <label htmlFor="file-upload" className="cursor-pointer">
                         <span className="mt-2 block text-sm font-medium text-gray-900">
-                          Clique para selecionar um arquivo PDF
+                          Clique para selecionar arquivos PDF
                         </span>
                         <span className="mt-1 block text-xs text-gray-500">
-                          Máximo 10MB
+                          Máximo 10MB por arquivo - Múltiplos arquivos permitidos
                         </span>
                       </label>
                       <input
@@ -256,6 +282,7 @@ const NewDocumentForm = ({ onDocumentCreated }: NewDocumentFormProps) => {
                         name="file-upload"
                         type="file"
                         accept=".pdf"
+                        multiple // Mudança: permitir múltiplos arquivos
                         className="sr-only"
                         onChange={handleFileSelect}
                       />
@@ -263,23 +290,57 @@ const NewDocumentForm = ({ onDocumentCreated }: NewDocumentFormProps) => {
                   </div>
                 </div>
               ) : (
-                <div className="border border-gray-300 rounded-lg p-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                      <FileText className="h-8 w-8 text-red-500" />
-                      <div>
-                        <p className="text-sm font-medium text-gray-900">{selectedFile.name}</p>
-                        <p className="text-xs text-gray-500">{formatFileSize(selectedFile.size)}</p>
+                <div className="space-y-2">
+                  {selectedFiles.map((file, index) => (
+                    <div key={index} className="border border-gray-300 rounded-lg p-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-3">
+                          <FileText className="h-8 w-8 text-red-500" />
+                          <div>
+                            <p className="text-sm font-medium text-gray-900">{file.name}</p>
+                            <p className="text-xs text-gray-500">{formatFileSize(file.size)}</p>
+                          </div>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            const newFiles = selectedFiles.filter((_, i) => i !== index);
+                            setSelectedFiles(newFiles);
+                          }}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
                       </div>
                     </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setSelectedFile(null)}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
+                  ))}
+                  <div className="mt-2">
+                    <label htmlFor="file-upload-additional" className="cursor-pointer">
+                      <Button type="button" variant="outline" size="sm" className="w-full">
+                        <Upload className="w-4 h-4 mr-2" />
+                        Adicionar mais arquivos
+                      </Button>
+                    </label>
+                    <input
+                      id="file-upload-additional"
+                      type="file"
+                      accept=".pdf"
+                      multiple
+                      className="sr-only"
+                      onChange={(e) => {
+                        const newFiles = Array.from(e.target.files || []);
+                        const validFiles: File[] = [];
+                        
+                        newFiles.forEach(file => {
+                          if (file.type === 'application/pdf' && file.size <= 10 * 1024 * 1024) {
+                            validFiles.push(file);
+                          }
+                        });
+                        
+                        setSelectedFiles(prev => [...prev, ...validFiles]);
+                      }}
+                    />
                   </div>
                 </div>
               )}

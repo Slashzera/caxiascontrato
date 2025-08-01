@@ -35,10 +35,11 @@ const ContractManagement = () => {
 
       if (error) throw error;
 
+      // No mapeamento dos contratos formatados, adicionar:
       const formattedContracts = (data || []).map(contract => ({
         id: contract.contract_number,
         contractId: contract.id,
-        company_id: contract.company_id, // IMPORTANTE: Esta linha deve estar presente
+        company_id: contract.company_id,
         company: contract.companies?.name || 'N/A',
         object: contract.object,
         startDate: new Date(contract.start_date).toLocaleDateString('pt-BR'),
@@ -46,6 +47,7 @@ const ContractManagement = () => {
         value: `R$ ${contract.value.toLocaleString('pt-BR')}`,
         status: contract.status,
         fiscalResponsible: contract.fiscal_responsible,
+        observations: contract.observations || '', // Novo campo
         cnpj: contract.companies?.cnpj || 'N/A'
       }));
 

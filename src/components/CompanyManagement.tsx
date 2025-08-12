@@ -26,7 +26,7 @@ const CompanyManagement = () => {
         .from('companies')
         .select(`
           *,
-          contracts!inner(id, status)
+          contracts(id, status)
         `)
         .order('name', { ascending: true }); // Garantir ordem alfabética ascendente
 

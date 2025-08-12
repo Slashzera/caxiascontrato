@@ -53,9 +53,10 @@ const Dashboard = () => {
         contractNumber: contract.contract_number,
         companyName: contract.companies?.name || 'N/A',
         endDate: new Date(contract.end_date).toLocaleDateString('pt-BR'),
-        daysRemaining: Math.ceil((new Date(contract.end_date) - today) / (1000 * 60 * 60 * 24))
-      }));
-      
+        daysRemaining: Math.ceil((new Date(contract.end_date) - today) / (1000 * 60 * 60 * 24)),
+        sortDate: new Date(contract.end_date) // Adicionar campo para ordenação
+      })).sort((a, b) => a.sortDate - b.sortDate); // Ordenar por data (menor para maior)
+
       setContractAlerts(expiringContracts);
 
       // Calculate status data
